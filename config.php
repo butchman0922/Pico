@@ -3,7 +3,7 @@
 // Override any of the default settings below:
 
 $config['site_title'] = 'ButchmanHome.net';			// Site title
-$config['base_url'] = 'http://www.butchmanhome.dev'; 				// Override base URL (e.g. http://example.com)
+$config['base_url'] = 'http://www.butchmanhome.net'; 				// Override base URL (e.g. http://example.com)
 $config['theme'] = 'default'; 			// Set the theme (defaults to "default")
 $config['date_format'] = 'jS M Y';		// Set the PHP date format
 $config['twig_config'] = array(			// Twig settings
