@@ -1,0 +1,49 @@
+Prepare pacman.mirrorlist 
+
+Back up the existing /etc/pacman.d/mirrorlist:
+
+    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.orig
+
+Create copy for running against rankmirrors
+    
+    mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.rank
+
+Edit /etc/pacman.d/mirrorlist.rank - delete unnessary listings and uncomment mirrors for testing with rankmirrors.
+
+Optionally run the following sed line to uncomment every mirror:
+
+    sed '/^#\S/ s|#||' -i /etc/pacman.d/mirrorlist.rank
+
+Finally, rank the mirrors. Operand -n 6 means only output the 6 fastest mirrors:
+Run rankmirrors -h for a list of all the available options.
+    
+    rankmirrors -n 6 /etc/pacman.d/mirrorlist.rank > /etc/pacman.d/mirrorlist
+
+#### Edit /etc/pacman.conf 
+uncomment to run 32-bit libriaries 
+    [multilib]
+    Include = /etc/pacman.d/mirrorlist
+
+add user repositories
+Yaourt
+    [archlinuxfr] 
+    Server = http://repo.archlinux.fr/$arch
+
+Force pacman to refresh the package lists
+    pacman -Syy
+
+## Install aria2 yaourt pacman-color
+    pacman -S aria2 yaourt pacman-color customizepkg rsync
+
+-- Enable aria2
+add line to /etc/pacman.conf
+XferCommand = /usr/bin/aria2c --allow-overwrite=true -c --file-allocation=falloc --log-level=error -m2 --max-connection-per-server=2 --max-file-not-found=5 --min-split-size=5M --no-conf --remote-time=true --summary-interval=0 -t5 -d / -o %o %u
+
+-- Enable pacman-color
+edit /etc/yaourtrc
+PACMAN="pacman-color"
+
+TODO
+========================================
+Learn to setup trusted pacman keys
+

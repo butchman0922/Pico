@@ -1,0 +1,67 @@
+curl and dictionary db
+
+13. Get Definition of a Word using DICT Protocol
+
+You can use cURL to get the definition for a word with the help of DICT protocol. We need to pass a Dictionary Server URL to it.
+
+$ curl dict://dict.org/d:bash
+
+The above command will list the meaning for bash as follows
+
+151 "Bash" gcide "The Collaborative International Dictionary of English v.0.48"
+Bash \Bash\, v. t. [imp. & p. p. {Bashed}; p. pr. & vb. n.
+   {Bashing}.] [Perh. of imitative origin; or cf. Dan. baske to
+   strike, bask a blow, Sw. basa to beat, bas a beating.]
+   To strike heavily; to beat; to crush. [Prov. Eng. & Scot.]
+   --Hall Caine.
+   [1913 Webster]
+
+         Bash her open with a rock.               --Kipling.
+   [Webster 1913 Suppl.]
+.
+151 "Bash" gcide "The Collaborative International Dictionary of English v.0.48"
+Bash \Bash\, n.
+   1. a forceful blow, especially one that does damage to its
+      target.
+      [PJC]
+.
+.
+
+Now you can see that it uses “The Collaborative International Dictionary of English”. There are many dictionaries are available. We can list all the dictionaries using
+
+$ curl dict://dict.org/show:db
+
+jargon "The Jargon File (version 4.4.7, 29 Dec 2003)"
+foldoc "The Free On-line Dictionary of Computing (26 July 2010)"
+easton "Easton's 1897 Bible Dictionary"
+hitchcock "Hitchcock's Bible Names Dictionary (late 1800's)"
+bouvier "Bouvier's Law Dictionary, Revised 6th Ed (1856)"
+
+Now in-order to find the actual meaning of Bash in computer we can search for bash in “foldoc” dictionary as follows
+
+$ curl dict://dict.org/d:bash:foldoc
+
+The result will be,
+
+bash
+
+   Bourne Again SHell.  {GNU}'s {command interpreter} for {Unix}.
+   Bash is a {Posix}-compatible {shell} with full {Bourne shell}
+   syntax, and some {C shell} commands built in.  The Bourne
+   Again Shell supports {Emacs}-style command-line editing, job
+   control, functions, and on-line help.  Written by Brian Fox of
+   {UCSB}.
+
+For more details with regard to DICT please read RFC2229
+
+curl to sent mail
+
+cURL can also be used to send mail using the SMTP protocol. You should specify the from-address, to-address, and the mailserver ip-address as shown below.
+
+$ curl --mail-from blah@test.com --mail-rcpt foo@test.com smtp://mailserver.com
+
+Once the above command is entered, it will wait for the user to provide the data to mail. Once you’ve composed your message, type . (period) as the last line, which will send the email immediately.
+
+Subject: Testing
+This is a test mail
+.

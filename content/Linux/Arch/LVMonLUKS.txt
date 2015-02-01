@@ -1,0 +1,103 @@
+LVM on LUKS
+
+Aim: Install Arch with encrypted root and home volumes. This was implemented using LVM to create the root and home partitions on top of one large encrypted volume using LUKS.
+
+- Fairly Secure Disk Overwrite -
+
+badblocks -c 10240 -wsvt random /dev/sda
+disk size: 80G 
+elapsed time: 1:28:45
+
+– Initial partitioning and encryption –
+
+boot with the net install cd
+
+use fdisk to create partitions as below
+
+    /dev/sda1 300MB
+    /dev/sda2 rest of the hdd
+
+Format the boot partition (/dev/sda1) with ext2
+
+    # mkfs.ext2 /dev/sda1
+
+encrypt 2nd partition (/dev/sda2) with AES-512
+
+    # cryptsetup -c aes-xts-plain -s 512 luksFormat /dev/sda2
+
+enter passphrase and again to confirm
+
+mount encrypted partition
+
+    # cryptsetup luksOpen /dev/sda2 sda2
+
+– LVM Setup –
+
+initialise volume
+
+    # pvcreate /dev/mapper/sda2
+    # pvdisplay (to check)
+
+create volume group ( root=28GB, swap=2G, home=rest of free space )
+
+    # vgcreate lvm /dev/mapper/sda2
+
+create logical volumes
+
+    # lvcreate -C y -L 28G -n root lvm
+    # lvcreate -C y -L 4G -n var lvm
+    # lvcreate -C y -L 4G -n tmp lvm    
+    # lvcreate -C y -L 2G -n swap lvm
+    # lvcreate -l +100%FREE -n home lvm
+    # lvdisplay
+
+– Arch Setup –
+
+start the Arch setup program
+
+    # /arch/setup
+
+Notes on specific steps in setup:
+
+1. Prepare Hard Drive
+
+3. Manually configure block devices, filesystems and mounpoints Disc selection /dev/* config as below;
+
+    boot: /boot /dev/sda1 ext2
+    swap: /swap /dev/mapper/swap swap (if you require a swap)
+    root: / /dev/mapper/root ext3
+    home: /home /dev/mapper/home ext3
+
+Package Selection
+Make sure to install base-devel multilib-dev netcfg ccze wireless-tools net-tools curl during package selection
+
+
+Configure System Files
+
+rc.conf
+
+    change USELVM=”no” to USELVM=”yes”
+    set LOCALE to EN
+    confirm TIMEZONE and KEYMAP
+
+mkinitcpio.conf
+
+    add to HOOKS section; encrypt lvm2
+
+grub config
+
+modify  grub menu entry:
+
+    # (0) Arch
+    title Arch Linux
+    root (hd0,0)
+    kernel /vmlinuz/linux cryptdevice=/dev/sda2:lvm root=/dev/mapper/lvm-root ro
+    initrd /initramfs-linux.img
+
+reboot and select the grub entry you added above
+
+enter passphrase to unlock encrypted partition
+
+login
+
+

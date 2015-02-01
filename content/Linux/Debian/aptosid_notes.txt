@@ -1,0 +1,295 @@
+# INSTALL NOTES FOR aptosid-2013-01-hesperides-xfce-amd64-201305050307 to lenovo ThinkPad SL510
+
+# setup encrypted disk with LVM
+
+fdisk /dev/sda
+ n to create a new partition on the disk
+ p  to make this the primary partition
+ 1  to give the partition the number 1 as an identifier
+ ### size allocation  ### Set first and last cylinders to the default values (press enter) to span the entire drive
+ t  toggle the type of partition to create
+ 8e  is the hex code for a Linux LVM
+ W  to write your changes to the disk. ##This will write the partition table. If you have realised that you made a mistake at this point, you could restore the old partition layout and your data will be fine.##
+
+pvcreate /dev/sda1
+vgcreate vg1 /dev/sda1
+lvcreate -n boot --size 250m vg
+lvcreate -n crypt --size 20g vg # set to size of (disk - boot) 
+
+mkfs.ext4 /dev/mapper/vg-boot
+cryptsetup --verify-passphrase --cipher aes-xts-plain:sha512 luksFormat /dev/mapper/vg-crypt
+cryptsetup luksOpen /dev/mapper/vg-crypt cryptroot
+pvcreate /dev/mapper/cryptroot
+vgcreate cryptvg /dev/mapper/cryptroot
+lvcreate -n swap --size 2g cryptvg
+lvcreate -n root --size 15g cryptvg
+lvcreate -n home --size 2g cryptvg
+
+mkswap /dev/mapper/cryptvg-swap
+mkfs.ext4 /dev/mapper/cryptvg-root
+mkfs.ext4 /dev/mapper/cryptvg-home
+
+# run the installer where you should use:
+vg-boot for /boot,
+cryptvg-root for /,
+cryptvg-home for /home,
+and cryptvg-swap for swap should be automagically recognised.
+
+reboot
+
+apt-get update
+
+# disabled swap in fstab
+
+# install openbox and some basic apps
+apt-get install nano openbox geany
+
+# Disable gvfs daemon (disabling it this way will cause it to come back
+# on an update, so I will look for a better solution
+mv /usr/share/dbus-1/services/gvfs-daemon.service \
+   /usr/share/dbus-1/services/gvfs-daemon.service-disabled
+mv /usr/share/dbus-1/services/gvfs-metadata.service \
+   /usr/share/dbus-1/services/gvfs-metadata.service-disabled
+
+# Disable password agents
+sed -i 's/^use-ssh-agent[[:blank:]]*/#use-ssh-agent/' /etc/X11/Xsession.options
+
+# Remove insane syntax highlighting in nano
+sed -i 's/^\(include .*\)/#\1/' /etc/nanorc  # fix colors
+
+# Add some items to /etc/sysctl.conf:
+    # Disable the magic-sysrq key (console security issues)
+    kernel.sysrq = 0
+
+    # Enable TCP SYN Cookie Protection
+    net.ipv4.tcp_syncookies = 1
+
+    # Reduce disk activity for SSD to 240 seconds
+    vm.dirty_ratio = 40
+    vm.dirty_background_ratio = 1
+    vm.dirty_writeback_centisecs = 24000
+
+# Add to rc.local for SSD:
+    # Set sda to use deadline scheduler
+    echo deadline > /sys/block/sda/queue/scheduler
+    echo 1 > /sys/block/sda/queue/iosched/fifo_batch
+
+# Install some more software
+apt-get install amule amule-utils asunder chkrootkit clamav claws-mail \
+claws-mail-trayicon crystalcursors deluge-gtk dnsutils dosfstools file-roller \
+flashplugin-nonfree fsarchiver geeqie gftp-gtk ghex gimp gtk2-engines imagemagick \
+inotify-tools jhead ktsuss leafpad libgd2-xpm-dev libreoffice-calc \
+libreoffice-writer lxpanel mencoder mozilla-plugin-vlc mpg123 netcat-openbsd \
+partimage pcal pdnsd pianobar pidgin rdate roxterm secure-delete shell-fm \
+smplayer smplayer-themes speedcrunch sqlite3 stunnel sun-java6-jre synaptic \
+tango-icon-theme ttf-mscorefonts-installer unetbootin unrar uuid-runtime vlc \
+x11-apps xdiskusage xpad xscreensaver xterm
+
+# Setup my Brother MFC-7420 Laser Printer/Scanner:
+
+    # add user to lpadmin group so user password can configure cups
+    gpasswd -a user lpadmin
+
+    # Install the drivers (some errors below are normal)
+    apt-get install ia32-libs 
+    dpkg -i --force-all --force-architecture brmfc7420lpr-2.0.1-1.i386.deb
+    mkdir /usr/share/cups/model/
+    dpkg -i --force-all --force-architecture cupswrapperMFC7420-2.0.1-2.i386.deb
+    ln -s /usr/lib/libbrcomplpr2.so /usr/lib32/libbrcomplpr2.so
+    dpkg -i brscan2-0.2.4-0.amd64.deb
+
+    # Visit http://localhost:631 to admin cups
+
+    # Let users in group scanner use scanner:
+    nano /etc/udev/rules.d/z60_libsane.rules  # creates file, add:
+        # Brother
+        SYSFS{idVendor}=="04f9", MODE="0666", GROUP="scanner", ENV{libsane_matched}="yes"
+
+    # Fix printer margins for newer cups:
+    nano /usr/local/Brother/inf/brMFC7420rc  # change:
+        PaperType=Letter
+
+# Video Card Setup
+    # first edit /etc/apt/sources.list.d/debian.list to include unstable non-free
+    apt-get update
+    apt-get install nvidia-kernel-source nvidia-kernel-common dmakms
+    echo nvidia-kernel-source >> /etc/default/dmakms
+    m-a a-i nvidia-kernel-source
+    apt-get install nvidia-glx
+    # REBOOT
+    # Manual Notes:
+    #    # When xorg updates you only need to reinstall nvidia-glx:
+    #        apt-get install --reinstall nvidia-glx
+    #    # When the nvidia-kernel-source is updated:
+    #        m-a a-i nvidia-kernel-source
+    #        apt-get install --reinstall nvidia-glx
+
+# Disable gdm:
+update-rc.d gdm disable
+
+# Add another user
+useradd -s /bin/bash -m -u 1001 extrauser
+usermod -G extrauser cdrom,audio,video,users
+
+# Build pcmanfm-mod without hal support (hal is running on aptosid but I don't
+# use the pcmanfm-mod volume management).  (Aptosid uses fam by default and this
+# seems to work better than gamin did in Arch.)
+apt-get install intltool pkg-config libgtk2.0-dev libstartup-notification0-dev libfam-dev
+# skip install of: libhal-storage-dev libhal-dev
+# unpack pcmanfm-mod tarball
+./configure --disable-hal --prefix=/usr  # HAL support disabled this way
+make
+sudo make install
+sudo install -c -m 755 pcmanfm-opener /usr/bin
+sudo update-mime-database /usr/share/mime
+sudo update-desktop-database
+
+# Stop PC speaker beeping
+nano /etc/inputrc  # edit:
+    set bell-style none
+nano /etc/modprobe.d/blacklist  # add:
+    blacklist pcspkr
+
+# Repair windows key - by default it was mapped to another key which caused
+# my openbox keyboard shortcuts to not work:
+# Info: http://bda.ath.cx/blog/2010/11/14/windows-key-in-aptosidsiduxdebian/
+nano /etc/default/keyboard  # change:
+    XKBOPTIONS="lv3:ralt_switch,compose:lwin,grp:alt_shift_toggle"
+# to:
+    XKBOPTIONS="lv3:ralt_switch,grp:alt_shift_toggle"
+
+# FULL UPDATE
+apt-get update
+apt-get dist-upgrade -d  # downloads but not install
+# IMPORTANT: exit X, login to tty
+init 3
+apt-get dist-upgrade
+apt-get clean
+
+# edit /etc/sudoers with desired defaults
+
+# Set static IP:
+nano /etc/network/interfaces  # disable dhcp line and add:
+    # Static
+    iface eth0 inet static
+    address 192.168.1.100
+    netmask 255.255.255.0
+    network 192.168.1.0
+    broadcast 192.168.1.255
+    gateway 192.168.1.1
+
+# Note: the default init script for pdnsd didn't work for me because it seemed
+# to have an error in it, and it also expected the cache to be in the default
+# location.  So I disabled that script and installed a modified one.
+
+# Add more loop devices 1 thru 7
+nano /etc/modules   # add:
+    loop max_loop=8
+
+# Add libdvdcss2 for DVDs:
+gpg --recv-keys 07DC563D1F41B907 && gpg -a --export 07DC563D1F41B907 | sudo apt-key add -
+# edit /etc/apt/sources.list.d/debian.list to include:
+    deb http://www.debian-multimedia.org sid main
+apt-get update
+apt-get install libdvdcss2
+
+# Fix crystal cursor missing drag-n-drop cursors
+cd /usr/share/icons/crystalgreen/cursors
+ln -s question_arrow dnd-ask
+ln -s link dnd-link
+ln -s left_ptr dnd-move
+ln -s left_ptr dnd-none
+
+# Install Google Earth 6
+    # NOTE: To prevent exim4 MTA being installed as a dependency for lsb-core
+    # I created a dummy package (exim4 is not really needed):
+	apt-get install equivs
+	nano exim4.ctl  # create, add contents:
+		Section: web
+		Package: exim4-dummy
+		Provides: exim4, exim4-base, exim4-config, exim4-daemon-light, mailutils
+		Description: EXIM4 dummy package
+		 This package provides dpkg with the information that
+		 there is a local mail server installed.
+	equivs-build exim4.ctl
+	dpkg -i exim4-dummy_1.0_all.deb
+
+    # NOTE: To prevent at being installed as a dependency for lsb-core
+    # I created a dummy package:
+	apt-get install equivs
+	nano at.ctl  # create, add contents:
+		Section: web
+		Package: at-dummy
+		Provides: at
+		Description: at dummy package
+		 This package provides dpkg with the information that
+		 this package is installed.
+	equivs-build at.ctl
+	dpkg -i at-dummy_1.0_all.deb
+
+    # Download google-earth-stable_current_amd64.deb (from earth.google.com)
+    dpkg -i google-earth-stable_current_amd64.deb
+    apt-get intall ia32-libs ia32-libs-gtk lsb-core
+    # someone said lib32nss-mdns was needed but it doesn't appear to be
+    # with above, works but no image - add nvidia 32bit libs (thanks dibl)
+    apt-get install nvidia-glx-ia32
+
+    # IMPORTANT: google deb also installs:
+        /etc/cron.daily/google-earth
+        /etc/apt/sources.list.d/google-earth.list
+        plus some mime stuff in /usr/share/applications
+    # so I remove it:
+    rm /etc/cron.daily/google-earth
+    rm /etc/apt/sources.list.d/google-earth.list
+    nano /usr/share/applications/mimeinfo.cache   # remove google entries
+    nano /usr/share/applications/defaults.list   # remove google entries
+        application/keyhole=google-earth.desktop
+        application/vnd.google-earth.kml+xml=google-earth.desktop
+        application/vnd.google-earth.kmz=google-earth.desktop
+        application/earthviewer=google-earth.desktop
+    # NOTE: Since its closed-source, consider running google-earth in a sandbox
+    #       such as sandfox.
+
+# Uninstall some unneeded (by me) and unwanted things:  (frees 146MB)  (I checked
+# these carefully for dependencies, otherwise apt-get can take out half your system -
+# use "apt-get -s remove PKGNAME" to simulate and see what it will do, or check using
+# Synaptic (but always use apt-get directly to do the actual removal)
+apt-get purge abiword aptosid-manual-de bluetooth bluez br2684ctl busybox ceni \
+cifs-utils fluxbox foo2zjs gcalctool gnumeric gpicview gxine gxineplugin hpijs \
+hpijs-ppds hplip hplip-cups hplip-data iceweasel-l10n-de lvm2 mc mlocate \
+myspell-de-de nmap openssh-server orage pcmciautils ristretto samba-common splix \
+squeeze thunar-volman transmission vpnc xarchiver xfburn
+
+# Remove unneeded locales (languages) to free 300MB:
+apt-get install localepurge  # unselect all but selected ones in your language!
+localepurge
+
+# Fix clock keeps changing on every boot
+nano /etc/default/rcS  # change:
+    UTC=no
+
+# disable daemons I don't want (many of these don't actually start and some aren't
+# even installed anymore, but I trim them anyway).  I use a script for this:
+update-rc.d acpid disable
+update-rc.d atd disable
+update-rc.d bluetooth disable
+update-rc.d clamav-freshclam disable
+update-rc.d cpufrequtils disable
+update-rc.d cryptdisks disable
+update-rc.d cryptdisks-early disable
+update-rc.d dns-clean disable
+update-rc.d exim4 disable
+update-rc.d fuse disable
+update-rc.d lvm2 disable
+update-rc.d pcmciautils disable
+update-rc.d pppd-dns disable
+update-rc.d resolvconf disable
+update-rc.d saned disable
+update-rc.d ssh disable
+update-rc.d stunnel4 disable
+update-rc.d virtualbox-ose-guest-utils disable
+
+# Yet to do:
+# install the genuine cdrtools instead of wodim
+# disable ipv6 for speed?
+

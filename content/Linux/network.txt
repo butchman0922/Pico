@@ -1,0 +1,53 @@
+Setup Networking
+
+- We want to manually control network connections -
+edit /etc/rc.conf
+remove network from deamons array
+
+- identify card -
+#lspci | grep -i net
+05:00.0 Network Controller: Intel Corporation Centrion Wireless-N 1000
+08:00.0 Ethernet Controller: Realtek Semiconductor Co., Ltd. RTL8111/8168B PCI Express Gigabit Ethernet controller (rev 03)
+
+-- Run wireless by hand --
+-- Bring card up --
+# ip link set wlan0 up
+
+-- Check for access points --
+# iwlist wlan0 scan
+
+-- associate with  WEP access point --
+# iwconfig wlan0 essid "MyEssid" key 1234567890 channel auto
+
+-- get networking information --
+# dhcpcd wlan0
+
+-- run wired by hand --
+
+
+-- Setup netcfg --
+install netcfg dialog bridge-utils +(wpa_actiond ifplugd - for auto connect deamons)
+# cp /etc/network.d/examples/<type of network connection> /etc/network.d/new_connection
+edit /etc/network.d/new_connection
+to start the connection
+# netcfg new_connection
+to bring the connection down
+# netcfg down new_connection
+
+-- Setup firewall --
+install ufw +(gufw for graphical configuration)
+#ufw enable
+#ufw default deny
+#ufw allow <app> (ufw app list - for list of apps)
+#ufw status
+
+add ufw to deamons array in rc.conf
+
+
+-- To cleanup dhcpd lease
+rm /var/lib/dhcpd/dhcpd-wlan0
+
+
+
+
+

@@ -1,0 +1,6 @@
+Setup dell 1130 lazer printer using stock Samsung ML1915 from the manufacturer list
+in cups admin.
+
+Samsung ML-2580N ?
+
+http://askubuntu.com/questions/138159/why-does-my-dell-1130n-printer-not-install?rq=1

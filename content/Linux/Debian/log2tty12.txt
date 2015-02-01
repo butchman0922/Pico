@@ -1,0 +1,28 @@
+-- standard method --
+edit /etc/syslog-ng/syslog-ng.conf
+make sure line is included
+destination console_all { file("/dev/tty12"); };
+uncomment last line or add
+log {source(src); destination(console_all); };
+
+Add the following line to /etc/innitab
+c12:123456:respawn:/sbin/agetty -8 -s 38400 tty12 linux
+
+-- for colored output --
+Install ccze
+
+To quickly test it, try tail -f var/log/messages | ccze -A
+
+The -A switch prevents ccze from starting itself in a curses window.
+
+Create a file cclm.sh in /usr/local/bin(you have to be root to be able to do so), with the following contents:
+#!/bin/bash
+file "/var/log/everything.log"
+tail -f $file | ccze -A
+
+# chmod 0700 /usr/local/bin/cclm.sh
+
+Add the following line to /etc/inittab
+c12:123456:respawn:/sbin/agetty -n -l /usr/local/bin/cclm.sh 38400 tty12 linux
+
+Reboot to get it working.

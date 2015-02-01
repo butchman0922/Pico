@@ -1,0 +1,4 @@
+install udisks devmon consolekit zenity
+
+
+

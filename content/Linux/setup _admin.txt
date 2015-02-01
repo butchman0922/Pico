@@ -1,0 +1,27 @@
+install sudo
+#visudo
+Defaults rootpw,insults - to forse the admin to use the root password instead of 
+their own and use the insults db
+uncomment 
+%wheel ALL=(ALL) ALL
+
+
+-- fix polkit so we can use udisks as a normal user --
+
+In unusual cases, you may need to explicitly setup PolicyKit to allow members of 
+the storage group to mount and unmount with udisks (usually this is already the case). 
+To do so, create a text file named /etc/polkit-1/localauthority/50-local.d/10-udisks.pkla 
+with this content:
+
+[udisks]
+Identity=unix-group:storage
+Action=org.freedesktop.udisks.drive-eject;org.freedesktop.udisks.filesystem-mount
+ResultAny=yes
+
+Then add your user to the storage group if necessary (replace “myusername” with yours):
+
+sudo usermod -aG storage myusername
+
+reboot
+
+
